@@ -5,10 +5,26 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePostRequest;
 use App\Http\Requests\UpdatePostRequest;
 use App\Models\Post;
+use App\Services\PostService;
 use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
+    /**
+     * @var PostService
+     */
+    protected $service;
+
+    /**
+     * Método construtor da classe
+     *
+     * @param PostService $service
+     */
+    public function __construct(PostService $service)
+    {
+        $this->service = $service;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -42,21 +58,21 @@ class PostController extends Controller
      */
     public function store(StorePostRequest $request)
     {
-        $user = auth()->user();
+        $input = $request->only('description');
+        $input['user_id'] = auth()->id();
 
-        $path = $request->photo->store('public/images');
-        $url = Storage::url($path);
-
-        Post::create([
-            'image' => $url,
-            'description' => $request->description,
-            'user_id' => $user->id
-        ]);
-
-        return redirect('/dashboard')->with(
-            'success',
-            'Post criado com sucesso'
+        $response = $this->service->store(
+            $input,
+            $request->photo
         );
+
+        if (!$response['success']) {
+            return back()->with(
+                'error',
+                $response['message']
+            );
+        }
+        return redirect('/dashboard');
     }
 
     /**
